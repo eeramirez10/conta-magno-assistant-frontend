@@ -1,20 +1,37 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useConversationDetail } from '../hooks/useConversationDetail'
 import { useConversations } from '../hooks/useConversations'
 import { OverviewCard } from '../../../shared/components/OverviewCard'
 import { ConversationListPanel } from './ConversationListPanel'
 import { ConversationChatPanel } from './ConversationChatPanel'
+import {
+  releaseConversationControl,
+  takeConversationControl,
+} from '../api/conversationControl'
+import { sendConversationMessage } from '../api/sendConversationMessage'
 
 
 export function ConversationInbox() {
-  const { data, loading, error, filters, updateFilters, clearFilters, loadConversations } = useConversations()
+  const {
+    data,
+    loading,
+    error,
+    filters,
+    updateFilters,
+    clearFilters,
+    loadConversations,
+    refetch: refetchConversations,
+  } = useConversations()
   const {
     activeConversationId,
     conversation,
     loading: detailLoading,
     error: detailError,
     openConversation,
+    refetchActiveConversation,
   } = useConversationDetail()
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
     void loadConversations()
@@ -50,6 +67,41 @@ export function ConversationInbox() {
       void openConversation(filteredConversations[0].id)
     }
   }, [activeConversationId, filteredConversations, openConversation])
+
+  const refreshConversationData = async () => {
+    await Promise.all([refetchActiveConversation(), refetchConversations()])
+  }
+
+  const runConversationAction = async (action: () => Promise<unknown>) => {
+    setActionLoading(true)
+    setActionError(null)
+
+    try {
+      await action()
+      await refreshConversationData()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No se pudo completar la acción'
+      setActionError(message)
+      throw error
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleTakeControl = async () => {
+    if (!activeConversationId) return
+    await runConversationAction(() => takeConversationControl(activeConversationId))
+  }
+
+  const handleReleaseControl = async () => {
+    if (!activeConversationId) return
+    await runConversationAction(() => releaseConversationControl(activeConversationId))
+  }
+
+  const handleSendMessage = async (text: string) => {
+    if (!activeConversationId) return
+    await runConversationAction(() => sendConversationMessage(activeConversationId, text))
+  }
 
   return (
     <div className="space-y-6 overflow-auto">
@@ -91,7 +143,16 @@ export function ConversationInbox() {
           }}
         />
 
-        <ConversationChatPanel conversation={conversation} loading={detailLoading} error={detailError} />
+        <ConversationChatPanel
+          conversation={conversation}
+          loading={detailLoading}
+          error={detailError}
+          actionLoading={actionLoading}
+          actionError={actionError}
+          onTakeControl={handleTakeControl}
+          onReleaseControl={handleReleaseControl}
+          onSendMessage={handleSendMessage}
+        />
 
       </section>
     </div>

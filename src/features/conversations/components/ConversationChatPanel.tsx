@@ -1,3 +1,4 @@
+import { useState, type FormEvent } from "react"
 import { Loader } from "../../../shared/components/Loader"
 import { MessageIcon } from "../../../shared/components/MessageIcon"
 import { SendIcon } from "../../../shared/components/SendIcon"
@@ -11,11 +12,38 @@ export function ConversationChatPanel({
   conversation,
   loading,
   error,
+  actionLoading,
+  actionError,
+  onTakeControl,
+  onReleaseControl,
+  onSendMessage,
 }: {
   conversation: ConversationDetail | null
   loading: boolean
   error: string | null
+  actionLoading: boolean
+  actionError: string | null
+  onTakeControl: () => Promise<void>
+  onReleaseControl: () => Promise<void>
+  onSendMessage: (text: string) => Promise<void>
 }) {
+  const [messageText, setMessageText] = useState("")
+  const hasHumanControl = conversation?.stage === "PENDING_HUMAN"
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    const text = messageText.trim()
+    if (!text || !hasHumanControl || actionLoading) return
+
+    try {
+      await onSendMessage(text)
+      setMessageText("")
+    } catch {
+      // The action error is rendered below the composer.
+    }
+  }
+
   return (
     <section className="flex h-195 w-full flex-col overflow-y-auto rounded-[28px] border border-[#1f2c33] bg-[#0b141a] shadow-[0_28px_70px_rgba(3,7,18,0.3)]">
       {conversation ? (
@@ -32,9 +60,25 @@ export function ConversationChatPanel({
             </div>
           </div>
 
-          <div className="hidden items-center gap-2 md:flex">
-            <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-[#02a698]">{formatLabel(conversation.stage)}</span>
-            <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-[#cfd4d7]">{formatLabel(conversation.status)}</span>
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-2 md:flex">
+              <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-[#02a698]">{formatLabel(conversation.stage)}</span>
+              <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-[#cfd4d7]">{formatLabel(conversation.status)}</span>
+            </div>
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => {
+                void (hasHumanControl ? onReleaseControl() : onTakeControl()).catch(() => undefined)
+              }}
+              className="rounded-full bg-[#00a884] px-4 py-2 text-xs font-semibold text-[#071b17] transition hover:bg-[#06cf9c] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {actionLoading
+                ? "Procesando..."
+                : hasHumanControl
+                  ? "Liberar control"
+                  : "Tomar control"}
+            </button>
           </div>
         </div>
       ) : (
@@ -96,31 +140,45 @@ export function ConversationChatPanel({
       </div>
 
       <div className="border-t border-white/5 bg-[#202c33] px-5 py-4">
-        <div className="rounded-[24px] bg-[#111b21] p-4">
+        <form className="rounded-[24px] bg-[#111b21] p-4" onSubmit={handleSubmit}>
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/5 text-[#8696a0]">
               <SendIcon />
             </div>
             <div className="min-w-0 flex-1">
               <input
-                disabled
+                value={messageText}
+                onChange={(event) => setMessageText(event.target.value)}
+                disabled={!hasHumanControl || actionLoading}
                 className="h-12 w-full rounded-full border border-transparent bg-[#202c33] px-5 text-sm text-[#cfd4d7] outline-none placeholder:text-[#8696a0]"
-                placeholder="La respuesta desde panel se habilita cuando exista POST /api/conversations/:id/messages"
+                placeholder={
+                  hasHumanControl
+                    ? "Escribe un mensaje"
+                    : "Toma el control para responder"
+                }
                 type="text"
+                maxLength={4000}
               />
             </div>
             <button
-              type="button"
-              disabled
-              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#02a698]/40 text-[#0b141a] opacity-60"
+              type="submit"
+              disabled={!hasHumanControl || actionLoading || messageText.trim().length === 0}
+              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#02a698] text-[#0b141a] transition hover:bg-[#06cf9c] disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Enviar mensaje"
             >
               <SendIcon />
             </button>
           </div>
-          <p className="mt-3 text-xs leading-5 text-[#8696a0]">
-            El diseño ya quedó listo para la caja de respuesta. Falta conectar el endpoint de salida humana para mandar el mensaje al número de WhatsApp Business desde este panel.
-          </p>
-        </div>
+          {actionError ? (
+            <p className="mt-3 text-xs leading-5 text-rose-300">{actionError}</p>
+          ) : (
+            <p className="mt-3 text-xs leading-5 text-[#8696a0]">
+              {hasHumanControl
+                ? "Control humano activo. El asistente no responderá mientras mantengas el control."
+                : "El asistente tiene el control de esta conversación."}
+            </p>
+          )}
+        </form>
       </div>
     </section>
   )
