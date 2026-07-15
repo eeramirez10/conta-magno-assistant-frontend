@@ -36,7 +36,7 @@ export const ShellContent = ({ children }: { children: ReactNode }) => {
           isExpanded || isHovered ? 'lg:ml-[290px]' : 'lg:ml-[90px]',
         )}
       >
-        <div className="mx-auto max-w-[1600px] px-4 py-6 md:px-6">
+        <div className="mx-auto max-w-[1600px] px-4 py-6 md:px-6 ">
           {children}
         </div>
       </main>

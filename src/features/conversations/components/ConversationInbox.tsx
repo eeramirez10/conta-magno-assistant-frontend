@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect,  useState } from 'react'
 import { useConversationDetail } from '../hooks/useConversationDetail'
 import { useConversations } from '../hooks/useConversations'
-import { OverviewCard } from '../../../shared/components/OverviewCard'
 import { ConversationListPanel } from './ConversationListPanel'
 import { ConversationChatPanel } from './ConversationChatPanel'
 import {
@@ -10,8 +9,12 @@ import {
 } from '../api/conversationControl'
 import { sendConversationMessage } from '../api/sendConversationMessage'
 
+type ConversationInboxProps = {
+  variant?: 'dashboard' | 'whatsapp'
+}
 
-export function ConversationInbox() {
+export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxProps) {
+  const isWhatsAppView = variant === 'whatsapp'
   const {
     data,
     loading,
@@ -32,6 +35,7 @@ export function ConversationInbox() {
   } = useConversationDetail()
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [showMobileChat, setShowMobileChat] = useState(false)
 
   useEffect(() => {
     void loadConversations()
@@ -42,6 +46,7 @@ export function ConversationInbox() {
     const matchesSearch =
       search.length === 0 ||
       item.displayName.toLowerCase().includes(search) ||
+      (item.contactWaId || '').toLowerCase().includes(search) ||
       (item.contactPhone || '').toLowerCase().includes(search) ||
       item.stage.toLowerCase().includes(search) ||
       item.status.toLowerCase().includes(search)
@@ -52,9 +57,7 @@ export function ConversationInbox() {
   })
 
   const statuses = Array.from(new Set(data.map((item) => item.status))).sort((left, right) => left.localeCompare(right))
-  const openCount = data.filter((item) => item.status === 'OPEN').length
-  const completedCount = data.filter((item) => item.stage === 'COMPLETED').length
-  const waitingCount = data.filter((item) => item.status !== 'OPEN').length
+
 
   useEffect(() => {
     if (filteredConversations.length === 0) {
@@ -103,56 +106,49 @@ export function ConversationInbox() {
     await runConversationAction(() => sendConversationMessage(activeConversationId, text))
   }
 
+  const handleOpenConversation = (conversationId: string) => {
+    setShowMobileChat(true)
+    void openConversation(conversationId)
+  }
+
+  const handleBackToList = () => {
+    setShowMobileChat(false)
+  }
+
   return (
-    <div className="space-y-6 overflow-auto">
-      <section className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Conta Magno</p>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Centro de conversaciones</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            Esta primera versión ya aterriza el diseño del inbox dentro del proyecto real. Lee conversaciones del backend actual y deja listo el espacio donde después responderá un humano desde la misma cuenta de WhatsApp Business.
-          </p>
-        </div>
-
-        <div className="rounded-full border border-[#b6efe6] bg-[#f0fffb] px-4 py-2 text-sm font-medium text-[#008069]">
-          Vista conectada a /api/conversations
-        </div>
-      </section>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <OverviewCard label="Conversaciones" value={String(data.length)} accent="bg-slate-900" />
-        <OverviewCard label="Abiertas" value={String(openCount)} accent="bg-emerald-500" />
-        <OverviewCard label="Completadas" value={String(completedCount)} accent="bg-cyan-500" />
-        <OverviewCard label="Seguimiento" value={String(waitingCount)} accent="bg-amber-400" />
-      </section>
+    <div className={isWhatsAppView ? 'overflow-hidden p-0 ' : 'space-y-6 overflow-auto'}>
 
       <section className="flex">
-        <ConversationListPanel
-          rows={filteredConversations}
-          activeConversationId={activeConversationId}
-          loading={loading}
-          error={error}
-          search={filters.search || ''}
-          status={filters.status}
-          statuses={statuses}
-          onSearchChange={(value) => updateFilters({ search: value })}
-          onStatusChange={(value) => updateFilters({ status: value || undefined })}
-          onClear={clearFilters}
-          onOpen={(conversationId) => {
-            void openConversation(conversationId)
-          }}
-        />
+        <div className={showMobileChat ? 'hidden lg:block' : 'block w-full lg:block lg:w-auto'}>
+          <ConversationListPanel
+            rows={filteredConversations}
+            activeConversationId={activeConversationId}
+            loading={loading}
+            error={error}
+            search={filters.search || ''}
+            status={filters.status}
+            statuses={statuses}
+            onSearchChange={(value) => updateFilters({ search: value })}
+            onStatusChange={(value) => updateFilters({ status: value || undefined })}
+            onClear={clearFilters}
+            onOpen={handleOpenConversation}
+          />
+        </div>
 
-        <ConversationChatPanel
-          conversation={conversation}
-          loading={detailLoading}
-          error={detailError}
-          actionLoading={actionLoading}
-          actionError={actionError}
-          onTakeControl={handleTakeControl}
-          onReleaseControl={handleReleaseControl}
-          onSendMessage={handleSendMessage}
-        />
+        <div className={showMobileChat ? 'block w-full lg:block' : 'hidden w-full lg:block'}>
+          <ConversationChatPanel
+            conversation={conversation}
+            loading={detailLoading}
+            error={detailError}
+            actionLoading={actionLoading}
+            actionError={actionError}
+            showBackButton={showMobileChat}
+            onBack={handleBackToList}
+            onTakeControl={handleTakeControl}
+            onReleaseControl={handleReleaseControl}
+            onSendMessage={handleSendMessage}
+          />
+        </div>
 
       </section>
     </div>

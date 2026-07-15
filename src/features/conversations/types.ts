@@ -5,6 +5,7 @@ export type ConversationListItem = {
   contactId: string
   contactName: string | null
   contactPhone: string | null
+  contactWaId: string | null
   displayName: string
   provider: string
   stage: string

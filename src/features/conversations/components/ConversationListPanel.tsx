@@ -31,7 +31,7 @@ export function ConversationListPanel({
   onOpen: (conversationId: string) => void
 }) {
   return (
-    <section className=" h-195 min-w-75 overflow-hidden rounded-[28px] border border-[#1f2c33] bg-[#111b21] shadow-[0_28px_70px_rgba(3,7,18,0.28)]">
+    <section className="h-[calc(100dvh-130px)] min-h-[620px] w-full overflow-hidden rounded-[28px] border border-[#1f2c33] bg-[#111b21] shadow-[0_28px_70px_rgba(3,7,18,0.28)] lg:h-195 lg:min-w-75 lg:max-w-sm">
       <div className="border-b border-white/5 bg-[#202c33] px-5 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -81,7 +81,7 @@ export function ConversationListPanel({
         </div>
       </div>
 
-      <div className=" h-195 overflow-y-auto [scrollbar-color:#2a3942_transparent] [scrollbar-width:thin]">
+      <div className="h-[calc(100%-154px)] overflow-y-auto [scrollbar-color:#2a3942_transparent] [scrollbar-width:thin] pb-20">
         {loading ? (
           <div className="grid min-h-[420px] place-items-center">
             <Loader />
@@ -113,7 +113,7 @@ export function ConversationListPanel({
                       <p className="truncate text-sm font-semibold text-[#e9edef]">{conversation.displayName}</p>
                       <span className="shrink-0 text-[11px] text-[#8696a0]">{formatShortDate(conversation.updatedAt)}</span>
                     </div>
-                    <p className="mt-1 truncate text-xs text-[#8696a0]">{conversation.contactPhone || formatLabel(conversation.provider)}</p>
+                    <p className="mt-1 truncate text-xs text-[#8696a0]">{conversation.contactWaId || formatLabel(conversation.provider)}</p>
                     <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
                       <span className="rounded-full bg-white/5 px-2 py-1 text-[#02a698]">{formatLabel(conversation.stage)}</span>
                       <span className="rounded-full bg-white/5 px-2 py-1 text-[#cfd4d7]">{formatLabel(conversation.status)}</span>

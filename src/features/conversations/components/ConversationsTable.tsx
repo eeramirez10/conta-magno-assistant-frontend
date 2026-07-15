@@ -2,6 +2,8 @@ import type { ConversationListItem } from '../types'
 import Badge from '../../../shared/ui/badge/Badge'
 import { Loader } from '../../../shared/components/Loader'
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../../../shared/ui/table'
+import { formatLabel } from '../../../shared/utils/formatLabel'
+import { formatDateTime } from '../../../shared/utils/formatDateTime'
 
 type Props = {
   rows: ConversationListItem[]
@@ -11,22 +13,9 @@ type Props = {
   onRowClick: (conversationId: string) => void
 }
 
-function formatDate(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '-'
 
-  return new Intl.DateTimeFormat('es-MX', {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(date)
-}
 
-function formatLabel(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase())
-}
+
 
 function resolveStatusColor(status: string): 'success' | 'warning' | 'error' | 'info' | 'dark' {
   if (status === 'OPEN') return 'success'
@@ -45,9 +34,9 @@ export function ConversationsTable({
 }: Props) {
   return (
     <div className="relative overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
-      <div className="max-w-full overflow-x-auto">
+      <div className="max-w-full max-h-120  overflow-auto">
         <Table>
-          <TableHeader className="border-b border-slate-200 bg-slate-50/80">
+          <TableHeader className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50">
             <TableRow>
               <TableCell isHeader className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Contacto
@@ -70,7 +59,7 @@ export function ConversationsTable({
             </TableRow>
           </TableHeader>
 
-          <TableBody className="divide-y divide-slate-200">
+          <TableBody className="divide-y divide-slate-200 ">
             {rows.map((row) => {
               const isActive = row.id === activeConversationId
 
@@ -94,7 +83,7 @@ export function ConversationsTable({
                     </Badge>
                   </TableCell>
                   <TableCell className="px-5 py-4 text-sm text-slate-600">{formatLabel(row.stage)}</TableCell>
-                  <TableCell className="px-5 py-4 text-sm text-slate-600">{formatDate(row.updatedAt)}</TableCell>
+                  <TableCell className="px-5 py-4 text-sm text-slate-600">{formatDateTime(row.updatedAt)}</TableCell>
                 </TableRow>
               )
             })}

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Loader } from "../../../shared/components/Loader"
 import { MessageIcon } from "../../../shared/components/MessageIcon"
 import { SendIcon } from "../../../shared/components/SendIcon"
@@ -14,6 +14,8 @@ export function ConversationChatPanel({
   error,
   actionLoading,
   actionError,
+  showBackButton = false,
+  onBack,
   onTakeControl,
   onReleaseControl,
   onSendMessage,
@@ -23,12 +25,32 @@ export function ConversationChatPanel({
   error: string | null
   actionLoading: boolean
   actionError: string | null
+  showBackButton?: boolean
+  onBack?: () => void
   onTakeControl: () => Promise<void>
   onReleaseControl: () => Promise<void>
   onSendMessage: (text: string) => Promise<void>
 }) {
   const [messageText, setMessageText] = useState("")
   const hasHumanControl = conversation?.stage === "PENDING_HUMAN"
+
+
+  useEffect(() => {
+
+    if (loading || !conversation) return;
+    const frameId = requestAnimationFrame(() => {
+      const container = messagesContainerRef.current
+
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    })
+
+    return () => cancelAnimationFrame(frameId)
+
+  }, [loading, conversation])
+
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -45,22 +67,32 @@ export function ConversationChatPanel({
   }
 
   return (
-    <section className="flex h-195 w-full flex-col overflow-y-auto rounded-[28px] border border-[#1f2c33] bg-[#0b141a] shadow-[0_28px_70px_rgba(3,7,18,0.3)]">
+    <section className="flex h-[calc(100dvh-130px)] min-h-155 w-full flex-col overflow-hidden rounded-[28px] border border-[#1f2c33] bg-[#0b141a] shadow-[0_28px_70px_rgba(3,7,18,0.3)] lg:h-195">
       {conversation ? (
-        <div className="flex items-center justify-between gap-4 border-b border-white/5 bg-[#202c33] px-6 py-4">
+        <div className="flex items-center justify-between gap-3 border-b border-white/5 bg-[#202c33] px-4 py-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-4">
+            {showBackButton ? (
+              <button
+                type="button"
+                onClick={onBack}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#111b21] text-lg font-semibold text-[#e9edef] transition hover:bg-[#2a3942] lg:hidden"
+                aria-label="Volver a conversaciones"
+              >
+                ←
+              </button>
+            ) : null}
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2a3942] text-sm font-semibold text-[#e9edef]">
               {conversation.displayName.slice(0, 2).toUpperCase()}
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#e9edef]">{conversation.displayName}</p>
               <p className="truncate text-xs text-[#8696a0]">
-                {conversation.contactPhone || 'Sin teléfono confirmado'} · {formatLabel(conversation.provider)}
+                {conversation.contactWaId || 'Sin número de WhatsApp'} · {formatLabel(conversation.provider)}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <div className="hidden items-center gap-2 md:flex">
               <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-[#02a698]">{formatLabel(conversation.stage)}</span>
               <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-[#cfd4d7]">{formatLabel(conversation.status)}</span>
@@ -71,7 +103,7 @@ export function ConversationChatPanel({
               onClick={() => {
                 void (hasHumanControl ? onReleaseControl() : onTakeControl()).catch(() => undefined)
               }}
-              className="rounded-full bg-[#00a884] px-4 py-2 text-xs font-semibold text-[#071b17] transition hover:bg-[#06cf9c] disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-full bg-[#00a884] px-3 py-2 text-xs font-semibold text-[#071b17] transition hover:bg-[#06cf9c] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
             >
               {actionLoading
                 ? "Procesando..."
@@ -87,7 +119,7 @@ export function ConversationChatPanel({
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto [scrollbar-color:#2a3942_transparent] [scrollbar-width:thin] bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(135deg,#0b141a_0%,#10232b_100%)] bg-[size:22px_22px,22px_22px,100%_100%] px-5 py-6">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto [scrollbar-color:#2a3942_transparent] [scrollbar-width:thin] bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(135deg,#0b141a_0%,#10232b_100%)] bg-[size:22px_22px,22px_22px,100%_100%] px-5 py-6">
         {loading ? (
           <div className="grid h-full min-h-[420px] place-items-center">
             <Loader />
