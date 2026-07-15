@@ -6,5 +6,6 @@ if(!apiUrl){
 }
 
 export const env = {
-  apiUrl
+  apiUrl,
+  realtimeUrl: new URL(apiUrl).origin,
 }

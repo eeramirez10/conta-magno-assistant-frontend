@@ -1,18 +1,8 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import { getCurrentSession, login as loginRequest, logout as logoutRequest, type AuthenticatedUser } from '../api/auth'
 import { setUnauthorizedHandler } from '../../../shared/api/httpClient'
-
-type AuthStatus = 'checking' | 'authenticated' | 'unauthenticated'
-
-type AuthContextValue = {
-  status: AuthStatus
-  user: AuthenticatedUser | null
-  login: (username: string, password: string) => Promise<void>
-  logout: () => Promise<void>
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null)
+import { AuthContext, type AuthStatus } from './auth-context'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('checking')
@@ -63,14 +53,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext)
-
-  if (!context) {
-    throw new Error('useAuth debe usarse dentro de AuthProvider')
-  }
-
-  return context
 }

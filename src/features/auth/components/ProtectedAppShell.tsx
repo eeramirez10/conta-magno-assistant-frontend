@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from 'react-router'
 
 import { AppShell } from '../../../app/AppShell'
-import { useAuth } from '../context/AuthProvider'
+import { useAuth } from '../context/auth-context'
 
 export function ProtectedAppShell() {
   const { status } = useAuth()

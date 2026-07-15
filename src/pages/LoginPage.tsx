@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router'
-import { useAuth } from '../features/auth/context/AuthProvider'
+import { useAuth } from '../features/auth/context/auth-context'
 
 export function LoginPage() {
   const [username, setUsername] = useState('')

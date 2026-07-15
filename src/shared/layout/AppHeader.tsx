@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { useSidebar } from '../context/sidebar-context'
 import { cn } from '../lib/cn'
 import { navSections } from '../navigation/nav.config'
-import { useAuth } from '../../features/auth/context/AuthProvider'
+import { useAuth } from '../../features/auth/context/auth-context'
 
 function MenuIcon() {
   return (

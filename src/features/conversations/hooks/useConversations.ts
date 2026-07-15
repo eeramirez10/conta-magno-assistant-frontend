@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { listConversations, type ListConversationsParams } from '../api/listConversation'
 import type { ConversationListItem } from '../types'
+import { useRealtime } from '../../../shared/realtime/realtime-context'
 
 type UseConversationsState = {
   data: ConversationListItem[]
@@ -20,6 +21,7 @@ const INITIAL_FILTERS: ListConversationsParams = {
 }
 
 export function useConversations(): UseConversationsState {
+  const { socket } = useRealtime()
   const [data, setData] = useState<ConversationListItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,8 +35,8 @@ export function useConversations(): UseConversationsState {
     setFilters(INITIAL_FILTERS)
   }, [])
 
-  const loadConversations = useCallback(async () => {
-    setLoading(true)
+  const fetchConversations = useCallback(async (showLoading: boolean) => {
+    if (showLoading) setLoading(true)
     setError(null)
 
     try {
@@ -44,9 +46,43 @@ export function useConversations(): UseConversationsState {
       const message = err instanceof Error ? err.message : 'No se pudieron cargar las conversaciones'
       setError(message)
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }, [])
+
+  const loadConversations = useCallback(
+    () => fetchConversations(true),
+    [fetchConversations],
+  )
+
+  const refetchConversations = useCallback(
+    () => fetchConversations(false),
+    [fetchConversations],
+  )
+
+  useEffect(() => {
+    let refreshTimer: number | undefined
+
+    const scheduleRefresh = () => {
+      window.clearTimeout(refreshTimer)
+      refreshTimer = window.setTimeout(() => {
+        void refetchConversations()
+      }, 75)
+    }
+
+    const reconcileAfterReconnect = () => {
+      void refetchConversations()
+    }
+
+    socket.on('conversation:updated', scheduleRefresh)
+    socket.on('connect', reconcileAfterReconnect)
+
+    return () => {
+      window.clearTimeout(refreshTimer)
+      socket.off('conversation:updated', scheduleRefresh)
+      socket.off('connect', reconcileAfterReconnect)
+    }
+  }, [refetchConversations, socket])
 
   return {
     data,
@@ -56,6 +92,6 @@ export function useConversations(): UseConversationsState {
     updateFilters,
     clearFilters,
     loadConversations,
-    refetch: loadConversations,
+    refetch: refetchConversations,
   }
 }
