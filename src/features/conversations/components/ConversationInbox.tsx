@@ -13,6 +13,8 @@ type ConversationInboxProps = {
   variant?: 'dashboard' | 'whatsapp'
 }
 
+const fullscreenPanelStorageKey = 'conta-magno:conversations-fullscreen-panel'
+
 export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxProps) {
   const isWhatsAppView = variant === 'whatsapp'
   const {
@@ -36,10 +38,45 @@ export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxPr
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [showMobileChat, setShowMobileChat] = useState(false)
+  const [fullscreenPanel, setFullscreenPanel] = useState<'chat' | 'inbox' | null>(() => {
+    const savedPanel = window.localStorage.getItem(fullscreenPanelStorageKey)
+
+    return savedPanel === 'chat' || savedPanel === 'inbox' ? savedPanel : null
+  })
+  const isChatFullscreen = fullscreenPanel === 'chat'
+  const isInboxFullscreen = fullscreenPanel === 'inbox'
 
   useEffect(() => {
     void loadConversations()
   }, [loadConversations])
+
+  useEffect(() => {
+    if (!fullscreenPanel) return
+
+    const previousOverflow = document.body.style.overflow
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setFullscreenPanel(null)
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', closeOnEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [fullscreenPanel])
+
+  useEffect(() => {
+    if (fullscreenPanel) {
+      window.localStorage.setItem(fullscreenPanelStorageKey, fullscreenPanel)
+      return
+    }
+
+    window.localStorage.removeItem(fullscreenPanelStorageKey)
+  }, [fullscreenPanel])
 
   const filteredConversations = data.filter((item) => {
     const search = (filters.search || '').trim().toLowerCase()
@@ -107,11 +144,19 @@ export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxPr
   }
 
   const handleOpenConversation = (conversationId: string) => {
+    if (fullscreenPanel === 'inbox') {
+      setFullscreenPanel('chat')
+    }
+
     setShowMobileChat(true)
     void openConversation(conversationId)
   }
 
   const handleBackToList = () => {
+    if (fullscreenPanel === 'chat') {
+      setFullscreenPanel('inbox')
+    }
+
     setShowMobileChat(false)
   }
 
@@ -119,7 +164,7 @@ export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxPr
     <div className={isWhatsAppView ? 'overflow-hidden p-0 ' : 'space-y-6 overflow-auto'}>
 
       <section className="flex">
-        <div className={showMobileChat ? 'hidden lg:block' : 'block w-full lg:block lg:w-auto'}>
+        <div className={isChatFullscreen ? 'hidden' : showMobileChat ? 'hidden lg:block' : 'block w-full lg:block lg:w-auto'}>
           <ConversationListPanel
             rows={filteredConversations}
             activeConversationId={activeConversationId}
@@ -132,10 +177,12 @@ export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxPr
             onStatusChange={(value) => updateFilters({ status: value || undefined })}
             onClear={clearFilters}
             onOpen={handleOpenConversation}
+            isFullscreen={isInboxFullscreen}
+            onToggleFullscreen={() => setFullscreenPanel((currentValue) => currentValue === 'inbox' ? null : 'inbox')}
           />
         </div>
 
-        <div className={showMobileChat ? 'block w-full lg:block' : 'hidden w-full lg:block'}>
+        <div className={isInboxFullscreen ? 'hidden' : isChatFullscreen || showMobileChat ? 'block w-full lg:block' : 'hidden w-full lg:block'}>
           <ConversationChatPanel
             conversation={conversation}
             loading={detailLoading}
@@ -143,7 +190,9 @@ export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxPr
             actionLoading={actionLoading}
             actionError={actionError}
             showBackButton={showMobileChat}
+            isFullscreen={isChatFullscreen}
             onBack={handleBackToList}
+            onToggleFullscreen={() => setFullscreenPanel((currentValue) => currentValue === 'chat' ? null : 'chat')}
             onTakeControl={handleTakeControl}
             onReleaseControl={handleReleaseControl}
             onSendMessage={handleSendMessage}

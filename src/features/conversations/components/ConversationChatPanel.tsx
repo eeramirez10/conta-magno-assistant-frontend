@@ -8,6 +8,18 @@ import { isSameDay } from "../../../shared/utils/isSameDay"
 import type { ConversationDetail } from "../types"
 import { MessageBubble } from "./MessageBubble"
 
+function FullscreenIcon({ active }: { active: boolean }) {
+  return active ? (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M8 3v5H3M16 3v5h5M8 21v-5H3M16 21v-5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ) : (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function ConversationChatPanel({
   conversation,
   loading,
@@ -15,7 +27,9 @@ export function ConversationChatPanel({
   actionLoading,
   actionError,
   showBackButton = false,
+  isFullscreen = false,
   onBack,
+  onToggleFullscreen,
   onTakeControl,
   onReleaseControl,
   onSendMessage,
@@ -26,7 +40,9 @@ export function ConversationChatPanel({
   actionLoading: boolean
   actionError: string | null
   showBackButton?: boolean
+  isFullscreen?: boolean
   onBack?: () => void
+  onToggleFullscreen?: () => void
   onTakeControl: () => Promise<void>
   onReleaseControl: () => Promise<void>
   onSendMessage: (text: string) => Promise<void>
@@ -67,7 +83,9 @@ export function ConversationChatPanel({
   }
 
   return (
-    <section className="flex h-[calc(100dvh-130px)] min-h-155 w-full flex-col overflow-hidden rounded-[28px] border border-[#1f2c33] bg-[#0b141a] shadow-[0_28px_70px_rgba(3,7,18,0.3)] lg:h-195">
+    <section className={isFullscreen
+      ? 'fixed inset-0 z-[70] flex h-[100dvh] w-screen flex-col overflow-hidden bg-[#0b141a]'
+      : 'flex h-[calc(100dvh-130px)] min-h-155 w-full flex-col overflow-hidden rounded-[28px] border border-[#1f2c33] bg-[#0b141a] shadow-[0_28px_70px_rgba(3,7,18,0.3)] lg:h-195'}>
       {conversation ? (
         <div className="flex items-center justify-between gap-3 border-b border-white/5 bg-[#202c33] px-4 py-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-4">
@@ -110,6 +128,15 @@ export function ConversationChatPanel({
                 : hasHumanControl
                   ? "Liberar control"
                   : "Tomar control"}
+            </button>
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#111b21] text-[#cfd4d7] transition hover:bg-[#2a3942] hover:text-white"
+              aria-label={isFullscreen ? 'Reducir chat' : 'Agrandar chat'}
+              title={isFullscreen ? 'Reducir chat' : 'Agrandar chat'}
+            >
+              <FullscreenIcon active={isFullscreen} />
             </button>
           </div>
         </div>

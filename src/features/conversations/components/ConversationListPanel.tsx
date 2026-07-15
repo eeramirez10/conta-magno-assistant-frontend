@@ -5,6 +5,18 @@ import { formatLabel } from "../../../shared/utils/formatLabel"
 import { formatShortDate } from "../../../shared/utils/formatShortDate"
 import type { ConversationListItem } from "../types"
 
+function FullscreenIcon({ active }: { active: boolean }) {
+  return active ? (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M8 3v5H3M16 3v5h5M8 21v-5H3M16 21v-5h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ) : (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function ConversationListPanel({
   rows,
   activeConversationId,
@@ -17,6 +29,8 @@ export function ConversationListPanel({
   onStatusChange,
   onClear,
   onOpen,
+  isFullscreen = false,
+  onToggleFullscreen,
 }: {
   rows: ConversationListItem[]
   activeConversationId: string | null
@@ -29,18 +43,33 @@ export function ConversationListPanel({
   onStatusChange: (value: string) => void
   onClear: () => void
   onOpen: (conversationId: string) => void
+  isFullscreen?: boolean
+  onToggleFullscreen?: () => void
 }) {
   return (
-    <section className="h-[calc(100dvh-130px)] min-h-[620px] w-full overflow-hidden rounded-[28px] border border-[#1f2c33] bg-[#111b21] shadow-[0_28px_70px_rgba(3,7,18,0.28)] lg:h-195 lg:min-w-75 lg:max-w-sm">
+    <section className={isFullscreen
+      ? 'fixed inset-0 z-[70] flex h-[100dvh] w-screen flex-col overflow-hidden bg-[#111b21]'
+      : 'flex h-[calc(100dvh-130px)] min-h-[620px] w-full flex-col overflow-hidden rounded-[28px] border border-[#1f2c33] bg-[#111b21] shadow-[0_28px_70px_rgba(3,7,18,0.28)] lg:h-195 lg:min-w-75 lg:max-w-sm'}>
       <div className="border-b border-white/5 bg-[#202c33] px-5 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[#8696a0]">Inbox</p>
             <h2 className="mt-1 text-lg font-semibold text-[#e9edef]">Conversaciones</h2>
           </div>
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#111b21] text-[#02a698]">
-            <MessageIcon />
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#111b21] text-[#02a698]">
+              <MessageIcon />
+            </span>
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#111b21] text-[#cfd4d7] transition hover:bg-[#2a3942] hover:text-white"
+              aria-label={isFullscreen ? 'Reducir inbox' : 'Agrandar inbox'}
+              title={isFullscreen ? 'Reducir inbox' : 'Agrandar inbox'}
+            >
+              <FullscreenIcon active={isFullscreen} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -81,7 +110,7 @@ export function ConversationListPanel({
         </div>
       </div>
 
-      <div className="h-[calc(100%-154px)] overflow-y-auto [scrollbar-color:#2a3942_transparent] [scrollbar-width:thin] pb-20">
+      <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-color:#2a3942_transparent] [scrollbar-width:thin] pb-20">
         {loading ? (
           <div className="grid min-h-[420px] place-items-center">
             <Loader />
