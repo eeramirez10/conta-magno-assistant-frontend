@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { useSidebar } from '../context/sidebar-context'
 import { cn } from '../lib/cn'
 import { navSections } from '../navigation/nav.config'
+import { useAuth } from '../../features/auth/context/AuthProvider'
 
 function MenuIcon() {
   return (
@@ -30,6 +31,7 @@ export function AppHeader() {
   const location = useLocation()
   const navigate = useNavigate()
   const { isExpanded, isHovered, isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar()
+  const { logout, user } = useAuth()
 
   const currentItem = useMemo(
     () => navSections.flatMap((section) => section.items).find((item) => item.path === location.pathname),
@@ -43,6 +45,10 @@ export function AppHeader() {
     }
 
     toggleMobileSidebar()
+  }
+
+  const handleLogout = async () => {
+    await logout()
   }
 
   return (
@@ -85,6 +91,10 @@ export function AppHeader() {
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
+          <div className="hidden text-right sm:block">
+            <p className="max-w-32 truncate text-sm font-medium text-slate-800">{user?.username}</p>
+            <p className="text-xs text-slate-500">Administrador</p>
+          </div>
           <div className="grid size-10 place-items-center rounded-full bg-slate-900 text-sm font-semibold text-white">CM</div>
           <button
             type="button"
@@ -92,6 +102,13 @@ export function AppHeader() {
             className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100 hover:text-slate-950"
           >
             Inbox
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100 hover:text-slate-950"
+          >
+            Salir
           </button>
         </div>
       </div>

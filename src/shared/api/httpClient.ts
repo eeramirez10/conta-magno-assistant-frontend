@@ -1,5 +1,28 @@
 import { env } from "../../config/env"
 
+export class HttpError extends Error {
+  public readonly status: number
+
+  constructor(
+    message: string,
+    status: number,
+  ) {
+    super(message)
+    this.status = status
+  }
+}
+
+let unauthorizedHandler: (() => void) | undefined
+
+export function setUnauthorizedHandler(handler: (() => void) | undefined): () => void {
+  unauthorizedHandler = handler
+
+  return () => {
+    if (unauthorizedHandler === handler) {
+      unauthorizedHandler = undefined
+    }
+  }
+}
 
 type QueryValue = string | number | boolean | null | undefined
 type QueryParams = Record<string, QueryValue>
@@ -29,9 +52,22 @@ async function parseJsonSafe<T>(response: Response): Promise<T | null> {
   }
 }
 
+function throwHttpError(path: string, response: Response, data: unknown): never {
+  if (response.status === 401) {
+    unauthorizedHandler?.()
+  }
+
+  const message =
+    (data as { message?: string } | null)?.message ??
+    `HTTP ${response.status} en ${path}`
+
+  throw new HttpError(message, response.status)
+}
+
 export async function httpGet<T>(path: string, query?: QueryParams): Promise<T> {
   const response = await fetch(buildUrl(path, query), {
     method: 'GET',
+    credentials: 'include',
     headers: {
       Accept: 'application/json',
     },
@@ -40,10 +76,7 @@ export async function httpGet<T>(path: string, query?: QueryParams): Promise<T> 
   const data = await parseJsonSafe<T>(response)
 
   if (!response.ok) {
-    const message =
-      (data as { message?: string } | null)?.message ??
-      `HTTP ${response.status} al consultar ${path}`
-    throw new Error(message)
+    throwHttpError(path, response, data)
   }
 
   if (data === null) {
@@ -56,6 +89,7 @@ export async function httpGet<T>(path: string, query?: QueryParams): Promise<T> 
 export async function httpPostForm<T>(path: string, formData: FormData): Promise<T> {
   const response = await fetch(buildUrl(path), {
     method: 'POST',
+    credentials: 'include',
     headers: {
       Accept: 'application/json',
     },
@@ -65,10 +99,7 @@ export async function httpPostForm<T>(path: string, formData: FormData): Promise
   const data = await parseJsonSafe<T>(response)
 
   if (!response.ok) {
-    const message =
-      (data as { message?: string } | null)?.message ??
-      `HTTP ${response.status} al enviar ${path}`
-    throw new Error(message)
+    throwHttpError(path, response, data)
   }
 
   if (data === null) {
@@ -84,6 +115,7 @@ export async function httpPostJson<TResponse, TBody extends Record<string, unkno
 ): Promise<TResponse> {
   const response = await fetch(buildUrl(path), {
     method: 'POST',
+    credentials: 'include',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
@@ -94,10 +126,7 @@ export async function httpPostJson<TResponse, TBody extends Record<string, unkno
   const data = await parseJsonSafe<TResponse>(response)
 
   if (!response.ok) {
-    const message =
-      (data as { message?: string } | null)?.message ??
-      `HTTP ${response.status} al crear ${path}`
-    throw new Error(message)
+    throwHttpError(path, response, data)
   }
 
   if (data === null) {
@@ -113,6 +142,7 @@ export async function httpPatchJson<TResponse, TBody extends Record<string, unkn
 ): Promise<TResponse> {
   const response = await fetch(buildUrl(path), {
     method: 'PATCH',
+    credentials: 'include',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
@@ -123,10 +153,7 @@ export async function httpPatchJson<TResponse, TBody extends Record<string, unkn
   const data = await parseJsonSafe<TResponse>(response)
 
   if (!response.ok) {
-    const message =
-      (data as { message?: string } | null)?.message ??
-      `HTTP ${response.status} al actualizar ${path}`
-    throw new Error(message)
+    throwHttpError(path, response, data)
   }
 
   if (data === null) {
@@ -139,6 +166,7 @@ export async function httpPatchJson<TResponse, TBody extends Record<string, unkn
 export async function httpDelete(path: string): Promise<void> {
   const response = await fetch(buildUrl(path), {
     method: 'DELETE',
+    credentials: 'include',
     headers: {
       Accept: 'application/json',
     },
@@ -149,6 +177,5 @@ export async function httpDelete(path: string): Promise<void> {
   }
 
   const data = await parseJsonSafe<{ message?: string }>(response)
-  const message = data?.message ?? `HTTP ${response.status} al eliminar ${path}`
-  throw new Error(message)
+  throwHttpError(path, response, data)
 }

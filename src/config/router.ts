@@ -1,14 +1,19 @@
 import { createBrowserRouter } from 'react-router'
 
-import { AppShell } from '../app/AppShell'
 import { ConversationsPage } from '../pages/ConversationsPage'
 import { DashboardPage } from '../pages/DashboardPage'
+import { LoginPage } from '../pages/LoginPage'
 import { SettingsPage } from '../pages/SettingsPage'
+import { ProtectedAppShell } from '../features/auth/components/ProtectedAppShell'
 
 export const router = createBrowserRouter([
   {
+    path: '/login',
+    Component: LoginPage,
+  },
+  {
     path: '/',
-    Component: AppShell,
+    Component: ProtectedAppShell,
     children: [
       {
         index: true,
