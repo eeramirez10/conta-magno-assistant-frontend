@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { getCurrentSession, login as loginRequest, logout as logoutRequest, type AuthenticatedUser } from '../api/auth'
 import { setUnauthorizedHandler } from '../../../shared/api/httpClient'
 import { AuthContext, type AuthStatus } from './auth-context'
+import { clearSessionToken, getSessionToken, setSessionToken } from '../session-token'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('checking')
@@ -13,11 +14,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const clearSession = () => {
       if (!active) return
+      clearSessionToken()
       setUser(null)
       setStatus('unauthenticated')
     }
 
     const removeUnauthorizedHandler = setUnauthorizedHandler(clearSession)
+
+    const token = getSessionToken()
+    if (!token) {
+      clearSession()
+      return removeUnauthorizedHandler
+    }
 
     getCurrentSession()
       .then((currentUser) => {
@@ -34,8 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = async (username: string, password: string): Promise<void> => {
-    const currentUser = await loginRequest(username, password)
-    setUser(currentUser)
+    const session = await loginRequest(username, password)
+    setSessionToken(session.token)
+    setUser(session.user)
     setStatus('authenticated')
   }
 
@@ -43,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await logoutRequest()
     } finally {
+      clearSessionToken()
       setUser(null)
       setStatus('unauthenticated')
     }

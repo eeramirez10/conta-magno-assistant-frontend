@@ -6,24 +6,32 @@ export type AuthenticatedUser = {
   username: string
 }
 
-type AuthResponse = {
+type SessionResponse = {
   ok: boolean
   data: {
     user: AuthenticatedUser
   }
 }
 
-export async function login(username: string, password: string): Promise<AuthenticatedUser> {
-  const response = await httpPostJson<AuthResponse, { username: string; password: string }>(
+type LoginResponse = {
+  ok: boolean
+  data: {
+    user: AuthenticatedUser
+    token: string
+  }
+}
+
+export async function login(username: string, password: string): Promise<LoginResponse['data']> {
+  const response = await httpPostJson<LoginResponse, { username: string; password: string }>(
     endpoints.login,
     { username, password },
   )
 
-  return response.data.user
+  return response.data
 }
 
 export async function getCurrentSession(): Promise<AuthenticatedUser> {
-  const response = await httpGet<AuthResponse>(endpoints.currentSession)
+  const response = await httpGet<SessionResponse>(endpoints.currentSession)
   return response.data.user
 }
 

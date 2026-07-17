@@ -1,4 +1,5 @@
 import { env } from "../../config/env"
+import { getSessionToken } from '../../features/auth/session-token'
 
 export class HttpError extends Error {
   public readonly status: number
@@ -26,6 +27,18 @@ export function setUnauthorizedHandler(handler: (() => void) | undefined): () =>
 
 type QueryValue = string | number | boolean | null | undefined
 type QueryParams = Record<string, QueryValue>
+
+function buildHeaders(contentType?: string): HeadersInit {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  }
+  const token = getSessionToken()
+
+  if (token) headers.Authorization = `Bearer ${token}`
+  if (contentType) headers['Content-Type'] = contentType
+
+  return headers
+}
 
 function buildUrl(path: string, query?: QueryParams): string {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
@@ -67,10 +80,7 @@ function throwHttpError(path: string, response: Response, data: unknown): never 
 export async function httpGet<T>(path: string, query?: QueryParams): Promise<T> {
   const response = await fetch(buildUrl(path, query), {
     method: 'GET',
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-    },
+    headers: buildHeaders(),
   })
 
   const data = await parseJsonSafe<T>(response)
@@ -89,10 +99,7 @@ export async function httpGet<T>(path: string, query?: QueryParams): Promise<T> 
 export async function httpPostForm<T>(path: string, formData: FormData): Promise<T> {
   const response = await fetch(buildUrl(path), {
     method: 'POST',
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-    },
+    headers: buildHeaders(),
     body: formData,
   })
 
@@ -115,11 +122,7 @@ export async function httpPostJson<TResponse, TBody extends Record<string, unkno
 ): Promise<TResponse> {
   const response = await fetch(buildUrl(path), {
     method: 'POST',
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
+    headers: buildHeaders('application/json'),
     body: JSON.stringify(body),
   })
 
@@ -142,11 +145,7 @@ export async function httpPatchJson<TResponse, TBody extends Record<string, unkn
 ): Promise<TResponse> {
   const response = await fetch(buildUrl(path), {
     method: 'PATCH',
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
+    headers: buildHeaders('application/json'),
     body: JSON.stringify(body),
   })
 
@@ -166,10 +165,7 @@ export async function httpPatchJson<TResponse, TBody extends Record<string, unkn
 export async function httpDelete(path: string): Promise<void> {
   const response = await fetch(buildUrl(path), {
     method: 'DELETE',
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-    },
+    headers: buildHeaders(),
   })
 
   if (response.ok) {
