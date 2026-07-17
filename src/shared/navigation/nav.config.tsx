@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import {  ChatIcon, HomeIcon, SettingsIcon } from './nav-icons'
+import { ChatIcon, ContactsIcon, HomeIcon, SettingsIcon } from './nav-icons'
 
 export type NavItemConfig = {
   label: string
@@ -27,6 +27,11 @@ export const navSections: NavSectionConfig[] = [
         label: 'Conversaciones',
         path: '/conversations',
         icon: <ChatIcon />,
+      },
+      {
+        label: 'Contactos',
+        path: '/contacts',
+        icon: <ContactsIcon />,
       },
     ],
   },

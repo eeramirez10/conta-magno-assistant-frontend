@@ -41,6 +41,17 @@ export function ChatIcon(props: IconProps) {
   )
 }
 
+export function ContactsIcon(props: IconProps) {
+  return (
+    <IconFrame {...props}>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
+      <path d="M16 11a2.5 2.5 0 1 0-1.4-4.57" />
+      <path d="M17.5 20a4.5 4.5 0 0 0-2.25-3.9" />
+    </IconFrame>
+  )
+}
+
 export function BookOpenIcon(props: IconProps) {
   return (
     <IconFrame {...props}>
