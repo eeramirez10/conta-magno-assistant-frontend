@@ -1,5 +1,5 @@
 import { endpoints } from '../../../shared/api/endpoints'
-import { httpDelete, httpGet } from '../../../shared/api/httpClient'
+import { HttpError, httpDelete, httpGet } from '../../../shared/api/httpClient'
 import type { Contact } from '../types'
 
 type ListContactsResponse = {
@@ -13,5 +13,10 @@ export async function listContacts(): Promise<Contact[]> {
 }
 
 export async function deleteContact(contactId: string): Promise<void> {
-  await httpDelete(endpoints.contactById(contactId))
+  try {
+    await httpDelete(endpoints.contactById(contactId))
+  } catch (error) {
+    if (error instanceof HttpError && error.status === 404) return
+    throw error
+  }
 }

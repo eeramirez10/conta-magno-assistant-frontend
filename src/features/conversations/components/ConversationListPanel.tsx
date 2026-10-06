@@ -1,9 +1,25 @@
+import { createPortal } from "react-dom"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Loader } from "../../../shared/components/Loader"
 import { MessageIcon } from "../../../shared/components/MessageIcon"
 import { SearchIcon } from "../../../shared/components/SearchIcon"
 import { formatLabel } from "../../../shared/utils/formatLabel"
 import { formatShortDate } from "../../../shared/utils/formatShortDate"
 import type { ConversationListItem } from "../types"
+
+type ContextMenuState = {
+  conversation: ConversationListItem
+  x: number
+  y: number
+}
+
+function MoreIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+}
+
+function TrashIcon() {
+  return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+}
 
 function FullscreenIcon({ active }: { active: boolean }) {
   return active ? (
@@ -29,6 +45,8 @@ export function ConversationListPanel({
   onStatusChange,
   onClear,
   onOpen,
+  onDeleteRequest,
+  onContextMenuStateChange,
   isFullscreen = false,
   onToggleFullscreen,
 }: {
@@ -43,9 +61,66 @@ export function ConversationListPanel({
   onStatusChange: (value: string) => void
   onClear: () => void
   onOpen: (conversationId: string) => void
+  onDeleteRequest: (conversation: ConversationListItem) => void
+  onContextMenuStateChange: (isOpen: boolean) => void
   isFullscreen?: boolean
   onToggleFullscreen?: () => void
 }) {
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const rowButtonRef = useRef<HTMLButtonElement>(null)
+  const contextMenuId = "conversation-context-menu"
+
+  const closeContextMenu = (restoreFocus = true) => {
+    setContextMenu(null)
+    onContextMenuStateChange(false)
+    if (restoreFocus) window.requestAnimationFrame(() => rowButtonRef.current?.focus())
+  }
+
+  const openContextMenu = (conversation: ConversationListItem, x: number, y: number) => {
+    setContextMenu({ conversation, x, y })
+    onContextMenuStateChange(true)
+  }
+
+  useLayoutEffect(() => {
+    if (!contextMenu || !menuRef.current) return
+    const bounds = menuRef.current.getBoundingClientRect()
+    const left = Math.max(8, Math.min(contextMenu.x, window.innerWidth - bounds.width - 8))
+    const top = Math.max(8, Math.min(contextMenu.y, window.innerHeight - bounds.height - 8))
+    menuRef.current.style.left = `${left}px`
+    menuRef.current.style.top = `${top}px`
+    menuRef.current.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+  }, [contextMenu])
+
+  useEffect(() => {
+    if (!contextMenu) return
+
+    const closeOnPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) closeContextMenu(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault()
+        event.stopPropagation()
+        closeContextMenu()
+      }
+    }
+    const closeOnScroll = () => closeContextMenu(false)
+
+    document.addEventListener("pointerdown", closeOnPointerDown)
+    document.addEventListener("keydown", closeOnEscape)
+    window.addEventListener("scroll", closeOnScroll, true)
+    window.addEventListener("resize", closeOnScroll)
+    return () => {
+      document.removeEventListener("pointerdown", closeOnPointerDown)
+      document.removeEventListener("keydown", closeOnEscape)
+      window.removeEventListener("scroll", closeOnScroll, true)
+      window.removeEventListener("resize", closeOnScroll)
+    }
+    // closeContextMenu intentionally uses the menu state from this effect's render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextMenu])
+
   return (
     <section className={isFullscreen
       ? 'fixed inset-0 z-[70] flex h-[100dvh] w-screen flex-col overflow-hidden bg-[#111b21]'
@@ -54,7 +129,7 @@ export function ConversationListPanel({
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-[#8696a0]">Inbox</p>
-            <h2 className="mt-1 text-lg font-semibold text-[#e9edef]">Conversaciones</h2>
+            <h2 tabIndex={-1} data-conversation-list-heading className="mt-1 text-lg font-semibold text-[#e9edef] outline-none">Conversaciones</h2>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#111b21] text-[#02a698]">
@@ -128,31 +203,109 @@ export function ConversationListPanel({
               const isActive = conversation.id === activeConversationId
 
               return (
-                <button
+                <div
                   key={conversation.id}
-                  type="button"
-                  onClick={() => onOpen(conversation.id)}
-                  className={isActive ? 'flex w-full items-start gap-3 border-b border-white/5 bg-[#202c33] px-4 py-4 text-left' : 'flex w-full items-start gap-3 border-b border-white/5 px-4 py-4 text-left transition hover:bg-[#182229]'}
+                  className={`group flex items-stretch border-b border-white/5 pr-2 transition ${isActive ? 'bg-[#202c33]' : 'hover:bg-[#182229]'}`}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    rowButtonRef.current = event.currentTarget.querySelector("[data-conversation-row]")
+                    openContextMenu(conversation, event.clientX, event.clientY)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.currentTarget !== event.target || event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return
+                    event.preventDefault()
+                    rowButtonRef.current = event.currentTarget.querySelector("[data-conversation-row]")
+                    const bounds = event.currentTarget.getBoundingClientRect()
+                    openContextMenu(conversation, bounds.left, bounds.bottom)
+                  }}
                 >
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2a3942] text-sm font-semibold text-[#e9edef]">
-                    {conversation.displayName.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="truncate text-sm font-semibold text-[#e9edef]">{conversation.displayName}</p>
-                      <span className="shrink-0 text-[11px] text-[#8696a0]">{formatShortDate(conversation.updatedAt)}</span>
+                  <button
+                    type="button"
+                    data-conversation-row
+                    data-conversation-id={conversation.id}
+                    onClick={() => onOpen(conversation.id)}
+                    onKeyDown={(event) => {
+                      if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) return
+                      event.preventDefault()
+                      rowButtonRef.current = event.currentTarget
+                      const bounds = event.currentTarget.getBoundingClientRect()
+                      openContextMenu(conversation, bounds.left, bounds.bottom)
+                    }}
+                    aria-haspopup="menu"
+                    aria-expanded={contextMenu?.conversation.id === conversation.id}
+                    aria-controls={contextMenuId}
+                    className="flex min-w-0 flex-1 items-start gap-3 py-4 pl-4 pr-2 text-left"
+                  >
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#2a3942] text-sm font-semibold text-[#e9edef]">
+                      {conversation.displayName.slice(0, 2).toUpperCase()}
                     </div>
-                    <p className="mt-1 truncate text-xs text-[#8696a0]">{conversation.contactWaId || formatLabel(conversation.provider)}</p>
-                    <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                      <span className="rounded-full bg-white/5 px-2 py-1 text-[#02a698]">{formatLabel(conversation.stage)}</span>
-                      <span className="rounded-full bg-white/5 px-2 py-1 text-[#cfd4d7]">{formatLabel(conversation.status)}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="truncate text-sm font-semibold text-[#e9edef]">{conversation.displayName}</p>
+                        <span className="shrink-0 text-[11px] text-[#8696a0]">{formatShortDate(conversation.updatedAt)}</span>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-[#8696a0]">{conversation.contactWaId || formatLabel(conversation.provider)}</p>
+                      <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                        <span className="rounded-full bg-white/5 px-2 py-1 text-[#02a698]">{formatLabel(conversation.stage)}</span>
+                        <span className="rounded-full bg-white/5 px-2 py-1 text-[#cfd4d7]">{formatLabel(conversation.status)}</span>
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                  <button
+                    type="button"
+                    data-context-menu-trigger
+                    aria-label={`Más opciones para ${conversation.displayName}`}
+                    aria-haspopup="menu"
+                    aria-expanded={contextMenu?.conversation.id === conversation.id}
+                    onClick={(event) => {
+                      rowButtonRef.current = event.currentTarget
+                      if (contextMenu?.conversation.id === conversation.id) closeContextMenu(false)
+                      else openContextMenu(conversation, event.currentTarget.getBoundingClientRect().right, event.currentTarget.getBoundingClientRect().bottom)
+                    }}
+                    className="my-auto inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#cfd4d7] transition hover:bg-[#2a3942] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#02a698]"
+                  >
+                    <MoreIcon />
+                  </button>
+                </div>
               )
             })
           : null}
       </div>
+      {contextMenu ? createPortal(
+        <div
+          ref={menuRef}
+          id={contextMenuId}
+          role="menu"
+          aria-label={`Opciones para ${contextMenu.conversation.displayName}`}
+          className="fixed z-[99990] min-w-60 rounded-xl border border-[#34434a] bg-[#202c33] p-1.5 shadow-[0_14px_36px_rgba(0,0,0,0.48)]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault()
+              event.stopPropagation()
+              closeContextMenu()
+            } else if (event.key === "Tab") {
+              event.preventDefault()
+              closeContextMenu()
+            }
+          }}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-rose-300 transition hover:bg-rose-500/10 hover:text-rose-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-rose-400"
+            onClick={() => {
+              const selected = contextMenu.conversation
+              closeContextMenu(false)
+              onDeleteRequest(selected)
+            }}
+          >
+            <TrashIcon />
+            <span>Eliminar conversación y contacto</span>
+          </button>
+        </div>,
+        document.body,
+      ) : null}
     </section>
   )
 }

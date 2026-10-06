@@ -56,6 +56,7 @@ export const useConversationDetail = (): UseConversationDetailState => {
     requestIdRef.current += 1
     setActiveConversationId(null);
     setConversation(null);
+    setLoading(false)
     setError(null)
   },[])
 
@@ -91,6 +92,12 @@ export const useConversationDetail = (): UseConversationDetailState => {
       }
     }
 
+    const handleConversationDeleted = (event: { conversationId: string }) => {
+      if (event.conversationId === activeConversationId) {
+        clearActiveConversation()
+      }
+    }
+
     const reconcileAfterReconnect = () => {
       joinActiveConversation()
       void fetchConversation(activeConversationId, false)
@@ -100,14 +107,16 @@ export const useConversationDetail = (): UseConversationDetailState => {
     socket.on('connect', reconcileAfterReconnect)
     socket.on('message:created', handleMessageCreated)
     socket.on('conversation:updated', handleConversationUpdated)
+    socket.on('conversation:deleted', handleConversationDeleted)
 
     return () => {
       socket.emit('conversation:leave', activeConversationId)
       socket.off('connect', reconcileAfterReconnect)
       socket.off('message:created', handleMessageCreated)
       socket.off('conversation:updated', handleConversationUpdated)
+      socket.off('conversation:deleted', handleConversationDeleted)
     }
-  }, [activeConversationId, fetchConversation, socket])
+  }, [activeConversationId, clearActiveConversation, fetchConversation, socket])
 
 
   return {
