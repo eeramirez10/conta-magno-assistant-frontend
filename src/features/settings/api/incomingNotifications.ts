@@ -1,17 +1,12 @@
 import { httpGet, httpPatchJson, httpPostJson } from '../../../shared/api/httpClient'
 
 export type IncomingNotificationSettings = {
-  enabled: boolean
   recipients: string[]
-  templateName: string
-  languageCode: string
-  templateMode: 'INCOMING_MESSAGE' | 'OWNER_LEAD'
 }
 
 export type IncomingNotificationSettingsResponse = {
   data: IncomingNotificationSettings
   metaConfigured: boolean
-  ownerLeadTemplate: { name: string; languageCode: string } | null
 }
 
 export type NotificationTestResult = {
