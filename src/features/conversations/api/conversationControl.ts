@@ -1,5 +1,5 @@
 import { endpoints } from '../../../shared/api/endpoints'
-import { httpPostJson } from '../../../shared/api/httpClient'
+import { httpGet, httpPostJson } from '../../../shared/api/httpClient'
 import type { ConversationListItem } from '../types'
 
 type ConversationControlResponse = {
@@ -17,9 +17,10 @@ export async function takeConversationControl(conversationId: string): Promise<C
 }
 
 export async function releaseConversationControl(conversationId: string): Promise<ConversationListItem> {
-  const response = await httpPostJson<ConversationControlResponse, Record<string, never>>(
+  const state = await httpGet<{data: {control: {sessionId: string}}}>(`/api/conversations/${conversationId}/capabilities`)
+  const response = await httpPostJson<ConversationControlResponse, {controlSessionId: string}>(
     endpoints.releaseConversationControl(conversationId),
-    {},
+    {controlSessionId: state.data.control.sessionId},
   )
 
   return response.data

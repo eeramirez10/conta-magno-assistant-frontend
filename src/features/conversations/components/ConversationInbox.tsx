@@ -1,3 +1,4 @@
+import { ModerationInbox } from './ModerationInbox'
 import { useEffect, useRef, useState } from 'react'
 import { useConversationDetail } from '../hooks/useConversationDetail'
 import { useConversations } from '../hooks/useConversations'
@@ -39,6 +40,8 @@ export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxPr
     refetchActiveConversation,
     clearActiveConversation,
   } = useConversationDetail()
+  const [policies,setPolicies] = useState<Array<{waId:string;decision:string}>>([])
+  const [inboxMode,setInboxMode] = useState('NORMAL')
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [showMobileChat, setShowMobileChat] = useState(false)
@@ -94,6 +97,10 @@ export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxPr
   }, [fullscreenPanel])
 
   const filteredConversations = data.filter((item) => {
+    const policy = policies.find(p=>p.waId===item.contactWaId)?.decision
+    if (inboxMode==='NORMAL' && (policy==='REVIEW'||policy==='BLOCKED')) return false
+    if (inboxMode==='REVIEW' && policy!=='REVIEW') return false
+    if (inboxMode==='BLOCKED' && policy!=='BLOCKED') return false
     const search = (filters.search || '').trim().toLowerCase()
     const matchesSearch =
       search.length === 0 ||
@@ -219,7 +226,7 @@ export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxPr
   }
 
   return (
-    <div className={isWhatsAppView ? 'overflow-hidden p-0 ' : 'space-y-6 overflow-auto'}>
+    <><ModerationInbox onPolicies={setPolicies} /><label className="text-sm">Bandeja <select value={inboxMode} onChange={e=>setInboxMode(e.target.value)}><option value="NORMAL">Prospectos</option><option value="REVIEW">Por revisar</option><option value="BLOCKED">Bloqueados</option></select></label><div className={isWhatsAppView ? 'overflow-hidden p-0 ' : 'space-y-6 overflow-auto'}>
 
       {deleteNotice ? <p role="status" className="fixed bottom-5 left-1/2 z-[99999] -translate-x-1/2 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-medium text-emerald-900 shadow-xl">{deleteNotice}</p> : null}
 
@@ -317,6 +324,6 @@ export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxPr
           </section>
         </div>
       ) : null}
-    </div>
+    </div></>
   )
 }

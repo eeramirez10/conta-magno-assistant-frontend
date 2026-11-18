@@ -1,3 +1,5 @@
+import { useChatCapabilities } from '../hooks/useChatCapabilities'
+import { ChatActions, MediaCard } from "./ChatCapabilities"
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Loader } from "../../../shared/components/Loader"
 import { MessageIcon } from "../../../shared/components/MessageIcon"
@@ -47,8 +49,9 @@ export function ConversationChatPanel({
   onReleaseControl: () => Promise<void>
   onSendMessage: (text: string) => Promise<void>
 }) {
+  const capabilities = useChatCapabilities(conversation?.id)
   const [messageText, setMessageText] = useState("")
-  const hasHumanControl = conversation?.stage === "PENDING_HUMAN"
+  const hasHumanControl = conversation?.stage === "PENDING_HUMAN" && !!capabilities.data?.control && Date.parse(capabilities.data.control.expiresAt) > capabilities.now
 
 
   useEffect(() => {
@@ -76,6 +79,7 @@ export function ConversationChatPanel({
 
     try {
       await onSendMessage(text)
+      await capabilities.refresh()
       setMessageText("")
     } catch {
       // The action error is rendered below the composer.
@@ -119,7 +123,7 @@ export function ConversationChatPanel({
               type="button"
               disabled={actionLoading}
               onClick={() => {
-                void (hasHumanControl ? onReleaseControl() : onTakeControl()).catch(() => undefined)
+                void (hasHumanControl ? onReleaseControl() : onTakeControl()).then(() => capabilities.refresh()).catch(() => undefined)
               }}
               className="rounded-full bg-[#00a884] px-3 py-2 text-xs font-semibold text-[#071b17] transition hover:bg-[#06cf9c] disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
             >
@@ -191,6 +195,7 @@ export function ConversationChatPanel({
                     </div>
                   ) : null}
                   <MessageBubble message={message} />
+                  {capabilities.data?.attachments.filter(a => a.messageId === message.id).map(a => <MediaCard key={a.id} attachment={a} />)}
                 </div>
               )
             })}
@@ -198,6 +203,7 @@ export function ConversationChatPanel({
         ) : null}
       </div>
 
+      {conversation && <ChatActions caption={messageText} onFilesSent={()=>setMessageText("")} id={conversation.id} capabilities={capabilities.data} refresh={capabilities.refresh} error={capabilities.error} setError={capabilities.setError} />}
       <div className="border-t border-white/5 bg-[#202c33] px-5 py-4">
         <form className="rounded-[24px] bg-[#111b21] p-4" onSubmit={handleSubmit}>
           <div className="flex items-center gap-3">
@@ -207,7 +213,7 @@ export function ConversationChatPanel({
             <div className="min-w-0 flex-1">
               <input
                 value={messageText}
-                onChange={(event) => setMessageText(event.target.value)}
+                onChange={(event) => { setMessageText(event.target.value); capabilities.activity() }}
                 disabled={!hasHumanControl || actionLoading}
                 className="h-12 w-full rounded-full border border-transparent bg-[#202c33] px-5 text-sm text-[#cfd4d7] outline-none placeholder:text-[#8696a0]"
                 placeholder={
