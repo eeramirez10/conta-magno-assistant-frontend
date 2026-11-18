@@ -46,6 +46,8 @@ export function ConversationListPanel({
   onClear,
   onOpen,
   onDeleteRequest,
+  onBlockRequest,
+  isBlocked,
   onContextMenuStateChange,
   isFullscreen = false,
   onToggleFullscreen,
@@ -62,6 +64,8 @@ export function ConversationListPanel({
   onClear: () => void
   onOpen: (conversationId: string) => void
   onDeleteRequest: (conversation: ConversationListItem) => void
+  onBlockRequest: (conversation: ConversationListItem) => void
+  isBlocked: (conversation: ConversationListItem) => boolean
   onContextMenuStateChange: (isOpen: boolean) => void
   isFullscreen?: boolean
   onToggleFullscreen?: () => void
@@ -290,6 +294,7 @@ export function ConversationListPanel({
             }
           }}
         >
+          <button type="button" role="menuitem" className="w-full rounded-lg px-3 py-2.5 text-left text-sm text-[#cfd4d7] hover:bg-white/10" onClick={()=>{const selected=contextMenu.conversation;closeContextMenu(false);onBlockRequest(selected)}}>{isBlocked(contextMenu.conversation)?'Desbloquear número':'Bloquear número'}</button>
           <button
             type="button"
             role="menuitem"

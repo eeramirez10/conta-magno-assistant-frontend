@@ -1,5 +1,5 @@
 import { useChatCapabilities } from '../hooks/useChatCapabilities'
-import { ChatActions, MediaCard } from "./ChatCapabilities"
+import { AttachmentPicker, ChatStatus, ConversationMenu, MediaCard } from "./ChatCapabilities"
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { Loader } from "../../../shared/components/Loader"
 import { MessageIcon } from "../../../shared/components/MessageIcon"
@@ -115,8 +115,9 @@ export function ConversationChatPanel({
           </div>
 
           <div className="flex shrink-0 items-center gap-2">
+            <ConversationMenu key={conversation.id} id={conversation.id} capabilities={capabilities.data} refresh={capabilities.refresh} setError={capabilities.setError} />
             <div className="hidden items-center gap-2 md:flex">
-              <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-[#02a698]">{formatLabel(conversation.stage)}</span>
+              <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-[#02a698]">{hasHumanControl ? `Atiende operador · ${Math.floor(Math.max(0,Math.ceil((Date.parse(capabilities.data!.control!.expiresAt)-capabilities.now)/1000))/60)}:${String(Math.max(0,Math.ceil((Date.parse(capabilities.data!.control!.expiresAt)-capabilities.now)/1000))%60).padStart(2,"0")}` : formatLabel(conversation.stage)}</span>
               <span className="rounded-full bg-white/5 px-3 py-1 text-xs text-[#cfd4d7]">{formatLabel(conversation.status)}</span>
             </div>
             <button
@@ -195,7 +196,7 @@ export function ConversationChatPanel({
                     </div>
                   ) : null}
                   <MessageBubble message={message} />
-                  {capabilities.data?.attachments.filter(a => a.messageId === message.id).map(a => <MediaCard key={a.id} attachment={a} />)}
+                  {capabilities.data?.attachments.filter(a => a.messageId === message.id).map(a => <MediaCard key={a.id} attachment={a} onChanged={capabilities.refresh} />)}
                 </div>
               )
             })}
@@ -203,13 +204,10 @@ export function ConversationChatPanel({
         ) : null}
       </div>
 
-      {conversation && <ChatActions caption={messageText} onFilesSent={()=>setMessageText("")} id={conversation.id} capabilities={capabilities.data} refresh={capabilities.refresh} error={capabilities.error} setError={capabilities.setError} />}
       <div className="border-t border-white/5 bg-[#202c33] px-5 py-4">
         <form className="rounded-[24px] bg-[#111b21] p-4" onSubmit={handleSubmit}>
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/5 text-[#8696a0]">
-              <SendIcon />
-            </div>
+            {conversation && <AttachmentPicker key={conversation.id} caption={messageText} onFilesSent={()=>setMessageText("")} disabled={!hasHumanControl || actionLoading || conversation.provider!=="META"} id={conversation.id} capabilities={capabilities.data} refresh={capabilities.refresh} setError={capabilities.setError} />}
             <div className="min-w-0 flex-1">
               <input
                 value={messageText}
@@ -243,6 +241,7 @@ export function ConversationChatPanel({
                 : "El asistente tiene el control de esta conversación."}
             </p>
           )}
+          <ChatStatus capabilities={capabilities.data} error={capabilities.error} />
         </form>
       </div>
     </section>

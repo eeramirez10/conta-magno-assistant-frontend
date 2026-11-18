@@ -31,6 +31,7 @@ type QueryParams = Record<string, QueryValue>
 function buildHeaders(contentType?: string): HeadersInit {
   const headers: Record<string, string> = {
     Accept: 'application/json',
+    'ngrok-skip-browser-warning': 'true',
   }
   const token = getSessionToken()
 

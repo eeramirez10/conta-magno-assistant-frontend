@@ -1,3 +1,4 @@
+import { httpPostJson } from '../../../shared/api/httpClient'
 import { ModerationInbox } from './ModerationInbox'
 import { useEffect, useRef, useState } from 'react'
 import { useConversationDetail } from '../hooks/useConversationDetail'
@@ -248,6 +249,8 @@ export function ConversationInbox({ variant = 'dashboard' }: ConversationInboxPr
               setDeleteError(null)
               setConversationToDelete(selected)
             }}
+            isBlocked={item=>policies.some(p=>p.waId===item.contactWaId&&p.decision==='BLOCKED')}
+            onBlockRequest={item=>{void runConversationAction(async()=>{const result=await httpPostJson<{data?:{warning?:string}},{decision:string}>(`/api/conversations/${item.id}/policy`,{decision:policies.some(p=>p.waId===item.contactWaId&&p.decision==='BLOCKED')?'APPROVED':'BLOCKED'});if(result.data?.warning)setDeleteNotice(result.data.warning)}).catch(()=>undefined)}}
             onContextMenuStateChange={setIsContextMenuOpen}
             isFullscreen={isInboxFullscreen}
             onToggleFullscreen={() => setFullscreenPanel((currentValue) => currentValue === 'inbox' ? null : 'inbox')}
