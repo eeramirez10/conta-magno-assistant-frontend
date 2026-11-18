@@ -1,3 +1,4 @@
+import { useToast } from '../../../shared/notifications/toastContext'
 import { useChatCapabilities } from '../hooks/useChatCapabilities'
 import { AttachmentPicker, ChatStatus, ConversationMenu, MediaCard } from "./ChatCapabilities"
 import { useEffect, useRef, useState, type FormEvent } from "react"
@@ -49,6 +50,9 @@ export function ConversationChatPanel({
   onReleaseControl: () => Promise<void>
   onSendMessage: (text: string) => Promise<void>
 }) {
+  const notify=useToast()
+  useEffect(()=>{if(error)notify(error,`detail:${conversation?.id}:${error}`)},[error,conversation?.id,notify])
+  useEffect(()=>{if(actionError)notify(actionError)},[actionError,notify])
   const capabilities = useChatCapabilities(conversation?.id)
   const [messageText, setMessageText] = useState("")
   const hasHumanControl = conversation?.stage === "PENDING_HUMAN" && !!capabilities.data?.control && Date.parse(capabilities.data.control.expiresAt) > capabilities.now
@@ -158,7 +162,7 @@ export function ConversationChatPanel({
           </div>
         ) : null}
 
-        {!loading && error ? <div className="text-sm text-rose-300">{error}</div> : null}
+
 
         {!loading && !error && !conversation ? (
           <div className="grid h-full min-h-[420px] place-items-center">
@@ -232,9 +236,7 @@ export function ConversationChatPanel({
               <SendIcon />
             </button>
           </div>
-          {actionError ? (
-            <p className="mt-3 text-xs leading-5 text-rose-300">{actionError}</p>
-          ) : (
+          {(
             <p className="mt-3 text-xs leading-5 text-[#8696a0]">
               {hasHumanControl
                 ? "Control humano activo. El asistente no responderá mientras mantengas el control."

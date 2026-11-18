@@ -1,3 +1,4 @@
+import { useToast } from '../../../shared/notifications/toastContext'
 import { createPortal } from "react-dom"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { Loader } from "../../../shared/components/Loader"
@@ -70,6 +71,8 @@ export function ConversationListPanel({
   isFullscreen?: boolean
   onToggleFullscreen?: () => void
 }) {
+  const notify=useToast()
+  useEffect(()=>{if(error)notify(error,`list:${error}`)},[error,notify])
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const rowButtonRef = useRef<HTMLButtonElement>(null)
@@ -196,7 +199,7 @@ export function ConversationListPanel({
           </div>
         ) : null}
 
-        {!loading && error ? <div className="p-6 text-sm text-rose-300">{error}</div> : null}
+
 
         {!loading && !error && rows.length === 0 ? (
           <div className="p-6 text-sm text-[#8696a0]">No hay conversaciones que coincidan con el filtro actual.</div>

@@ -1,10 +1,13 @@
+import { AudioPlayer } from './AudioPlayer'
+import { useToast } from '../../../shared/notifications/toastContext'
 import { useEffect, useRef, useState } from 'react'
 import { httpPostForm, httpPostJson } from '../../../shared/api/httpClient'
 import { env } from '../../../config/env'
 import { getSessionToken } from '../../auth/session-token'
 export type Attachment = { id: string; messageId: string; name: string; mime: string; size: number; status: string; transcript: string | null; error: string | null }
-export type Capabilities = { uncertainMessages?: Array<{id:string;text:string}>; failures?: Array<{id:string;error:string}>; control: { sessionId: string; expiresAt: string } | null; serverNow: string; policy: { decision: string; reason?: string; remoteStatus?: string }; attachments: Attachment[] }
+export type Capabilities = { scopeControl?: {state: string}; uncertainMessages?: Array<{id:string;text:string}>; failures?: Array<{id:string;error:string}>; control: { sessionId: string; expiresAt: string } | null; serverNow: string; policy: { decision: string; reason?: string; remoteStatus?: string }; attachments: Attachment[] }
 export function MediaCard({ attachment, onChanged }: { attachment: Attachment; onChanged?: () => Promise<void> }) {
+  const notify = useToast()
   const [url,setUrl] = useState('')
   const [error,setError] = useState('')
   const [retry,setRetry] = useState(0)
@@ -26,15 +29,17 @@ export function MediaCard({ attachment, onChanged }: { attachment: Attachment; o
     try {const result=await httpPostJson<{ok:boolean;message?:string},Record<string,never>>(`/api/attachments/${attachment.id}/retry`,{});if(!result.ok) throw new Error(result.message || 'No se pudo procesar');setRetry(n=>n+1)}
     catch(e){setError(e instanceof Error?e.message:String(e))}finally{setBusy(false);await onChanged?.()}
   }
+  useEffect(() => {
+    if (attachment.error) notify(attachment.error, `attachment:${attachment.id}:${attachment.error}`)
+    if (error) notify(error, `download:${attachment.id}:${retry}:${error}`)
+  }, [attachment.error,attachment.id,error,retry,notify])
   return <div className="my-2 max-w-xl rounded-xl bg-white/10 p-3 text-sm text-white">
     <p>{attachment.name} · {Math.ceil(attachment.size/1024)} KB</p>
     {attachment.status === 'PENDING' && <p>Procesando archivo…</p>}
-    {attachment.error && <p className="text-rose-300">{attachment.error}</p>}
-    {error && <p className="text-rose-300">{error}</p>}
     {(error || attachment.error || attachment.status==='FAILED') && <button type="button" disabled={busy} className="underline" onClick={()=>void retryFile()}>{busy?'Reintentando…':'Reintentar archivo'}</button>}
     {url && attachment.mime.startsWith('image/') && <a href={url} target="_blank" rel="noreferrer"><img src={url} alt={attachment.name} className="max-h-72 rounded-lg" /></a>}
     {url && attachment.mime === 'application/pdf' && <iframe title={attachment.name} src={url} className="h-64 w-full" />}
-    {url && audio && <audio controls preload="metadata" src={url} className="max-w-full" />}
+    {url && audio && <AudioPlayer src={url} />}
     {url && <a href={url} download={attachment.name} className="underline">Descargar</a>}
     {attachment.transcript && <details><summary>Ver transcripción</summary><p className="whitespace-pre-wrap">{attachment.transcript}</p></details>}
   </div>
@@ -85,11 +90,16 @@ export function AttachmentPicker({id,capabilities,refresh,setError,caption,onFil
  </div>
 }
 export function ChatStatus({capabilities,error}:{capabilities:Capabilities|null;error:string}){
+ const notify=useToast()
+ useEffect(()=>{
+  if(error)notify(error,`chat:${error}`)
+  const failures=capabilities?.failures??[]
+  if(failures.length)notify('No se pudo completar el procesamiento. Intenta nuevamente en unos segundos.',`jobs:${failures.map(f=>f.id).sort().join(',')}`)
+ },[error,capabilities?.failures,notify])
  return <div className="space-y-1 px-1 pt-2 text-xs text-amber-200" aria-live="polite">
-  {capabilities?.policy.decision==='REVIEW'&&<p>Mensaje pendiente de revisión: {capabilities.policy.reason}. Puedes autorizarlo desde el menú ⋮.</p>}
-  {capabilities?.policy.decision==='BLOCKED'&&<p>Número bloqueado.{capabilities.policy.remoteStatus==='FAILED'?' El bloqueo local está activo; WhatsApp no confirmó el bloqueo remoto.':''}</p>}
-  {error&&<p>{error}</p>}
-  {capabilities?.uncertainMessages?.map(m=><p key={m.id}>Envío de resultado incierto. Revisa su recepción antes de reenviar.</p>)}
-  {capabilities?.failures?.map(f=><p key={f.id} className="text-rose-300">{f.error}</p>)}
+  {capabilities?.scopeControl?.state==='PAUSED'&&<p>IA en silencio por tema ajeno. Retomará al consultar sobre Conta Magno.</p>}
+  {capabilities?.policy.decision==='REVIEW'&&<p>Mensaje pendiente de revisión. Puedes autorizarlo desde el menú ⋮.</p>}
+  {capabilities?.policy.decision==='BLOCKED'&&<p>Número bloqueado.</p>}
+  {!!capabilities?.uncertainMessages?.length&&<p>Envío pendiente de revisión. Revisa su recepción desde el menú ⋮.</p>}
  </div>
 }

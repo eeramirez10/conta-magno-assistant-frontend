@@ -1,4 +1,5 @@
 
+import { ToastProvider } from './shared/notifications/ToastProvider'
 import { RouterProvider } from 'react-router'
 import './App.css'
 import { router } from './config/router'
@@ -8,11 +9,11 @@ import { RealtimeProvider } from './shared/realtime/RealtimeProvider'
 function App() {
 
   return (
-    <AuthProvider>
+    <ToastProvider><AuthProvider>
       <RealtimeProvider>
         <RouterProvider router={router} />
       </RealtimeProvider>
-    </AuthProvider>
+    </AuthProvider></ToastProvider>
   )
 }
 
