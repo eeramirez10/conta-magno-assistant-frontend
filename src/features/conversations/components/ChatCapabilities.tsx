@@ -17,7 +17,7 @@ export function MediaCard({ attachment, onChanged }: { attachment: Attachment; o
   useEffect(() => {
     let objectUrl = ''; let disposed = false
     if (attachment.status !== 'READY') return
-    void fetch(`${env.apiUrl}/api/attachments/${attachment.id}/content${audio ? '?playback=1' : ''}`, { cache:'no-store', headers: { Authorization: `Bearer ${getSessionToken()}`, Accept:attachment.mime, 'ngrok-skip-browser-warning':'true' } }).then(async r => {
+    void fetch(`${env.apiUrl}/api/attachments/${attachment.id}/content${audio ? '?playback=1' : ''}`, { cache:'no-store', headers: { Authorization: `Bearer ${getSessionToken()}`, Accept:audio?'audio/mpeg':attachment.mime, 'ngrok-skip-browser-warning':'true' } }).then(async r => {
       if (!r.ok) throw new Error(`Archivo no disponible (HTTP ${r.status})`)
       const type=r.headers.get('content-type') ?? ''
       if(type.includes('text/html')) throw new Error('El proxy devolvió una página HTML en lugar del archivo. Reintenta la descarga.')
@@ -41,7 +41,7 @@ export function MediaCard({ attachment, onChanged }: { attachment: Attachment; o
     {url && attachment.mime.startsWith('image/') && <a href={url} target="_blank" rel="noreferrer"><img src={url} alt={attachment.name} className="max-h-72 rounded-lg" /></a>}
     {url && attachment.mime === 'application/pdf' && <iframe title={attachment.name} src={url} className="h-64 w-full" />}
     {url && audio && <AudioPlayer src={url} />}
-    {url && <a href={url} download={attachment.name} className="underline">Descargar</a>}
+    {url && <a href={url} download={audio ? `${attachment.name}.mp3` : attachment.name} className="underline">Descargar</a>}
     {attachment.transcript && <details><summary>Ver transcripción</summary><p className="whitespace-pre-wrap">{attachment.transcript}</p></details>}
   </div>
 }

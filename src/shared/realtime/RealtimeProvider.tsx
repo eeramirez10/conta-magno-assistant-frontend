@@ -11,6 +11,8 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false)
   const [socket] = useState<RealtimeSocket>(() => io(env.realtimeUrl, {
     autoConnect: false,
+    path: env.realtimePath,
+    extraHeaders: { 'ngrok-skip-browser-warning': 'true' },
     addTrailingSlash: false,
     auth: (callback) => callback({ token: getSessionToken() }),
   }))

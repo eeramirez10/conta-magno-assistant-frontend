@@ -93,12 +93,17 @@ export function useConversations(): UseConversationsState {
       scheduleRefresh()
     }
 
+    const reconcileVisible = () => { if (document.visibilityState === 'visible') scheduleRefresh() }
+    const interval = window.setInterval(reconcileVisible, 5000)
+    window.addEventListener('focus', reconcileVisible)
     socket.on('conversation:updated', scheduleRefresh)
     socket.on('conversation:deleted', handleConversationDeleted)
     socket.on('connect', reconcileAfterReconnect)
 
     return () => {
       window.clearTimeout(refreshTimer)
+      window.clearInterval(interval)
+      window.removeEventListener('focus', reconcileVisible)
       socket.off('conversation:updated', scheduleRefresh)
       socket.off('conversation:deleted', handleConversationDeleted)
       socket.off('connect', reconcileAfterReconnect)

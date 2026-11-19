@@ -21,6 +21,7 @@ export const useConversationDetail = (): UseConversationDetailState => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const requestIdRef = useRef(0)
+  const activeIdRef = useRef<string | null>(null)
 
   const fetchConversation = useCallback(async (conversationId: string, showLoading: boolean) => {
     const requestId = ++requestIdRef.current
@@ -29,19 +30,19 @@ export const useConversationDetail = (): UseConversationDetailState => {
 
     try {
       const data = await getConversationById(conversationId);
-      if (requestId !== requestIdRef.current) return
+      if (requestId !== requestIdRef.current || activeIdRef.current !== conversationId) return
       setConversation(data)
     } catch (error) {
-      if (requestId !== requestIdRef.current) return
+      if (requestId !== requestIdRef.current || activeIdRef.current !== conversationId) return
       const message = error instanceof Error ? error.message : 'No se pudo cargar la conversacion'
-      setError(message)
-      setConversation(null)
+      if (showLoading) { setError(message); setConversation(null) }
     } finally {
       if (requestId === requestIdRef.current) setLoading(false)
     }
   }, [])
 
   const openConversation = useCallback(async (conversationId: string) => {
+    activeIdRef.current = conversationId
     setActiveConversationId(conversationId)
     await fetchConversation(conversationId, true)
   }, [fetchConversation])
@@ -54,6 +55,7 @@ export const useConversationDetail = (): UseConversationDetailState => {
 
   const clearActiveConversation = useCallback(() => {
     requestIdRef.current += 1
+    activeIdRef.current = null
     setActiveConversationId(null);
     setConversation(null);
     setLoading(false)
@@ -63,6 +65,18 @@ export const useConversationDetail = (): UseConversationDetailState => {
   useEffect(() => {
     if (!activeConversationId) return
 
+    let refreshing = false
+    let disposed = false
+    const refresh = async () => {
+      if (refreshing || disposed || document.visibilityState === 'hidden') return
+      refreshing = true
+      try { await fetchConversation(activeConversationId, false) } finally { refreshing = false }
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') void refresh() }
+    // Reconcile missed events even when a proxy reports a connected but stale socket.
+    const timer = window.setInterval(() => { void refresh() }, 5000)
+    window.addEventListener('focus', onVisible)
+    document.addEventListener('visibilitychange', onVisible)
     const joinActiveConversation = () => {
       socket.emit('conversation:join', activeConversationId)
     }
@@ -110,6 +124,10 @@ export const useConversationDetail = (): UseConversationDetailState => {
     socket.on('conversation:deleted', handleConversationDeleted)
 
     return () => {
+      disposed = true
+      window.clearInterval(timer)
+      window.removeEventListener('focus', onVisible)
+      document.removeEventListener('visibilitychange', onVisible)
       socket.emit('conversation:leave', activeConversationId)
       socket.off('connect', reconcileAfterReconnect)
       socket.off('message:created', handleMessageCreated)
