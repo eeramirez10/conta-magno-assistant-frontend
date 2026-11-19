@@ -1,7 +1,7 @@
 import { useToast } from '../../../shared/notifications/toastContext'
 import { useChatCapabilities } from '../hooks/useChatCapabilities'
 import { AttachmentPicker, ChatStatus, ConversationMenu, MediaCard } from "./ChatCapabilities"
-import { useEffect, useRef, useState, type FormEvent } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react"
 import { Loader } from "../../../shared/components/Loader"
 import { MessageIcon } from "../../../shared/components/MessageIcon"
 import { SendIcon } from "../../../shared/components/SendIcon"
@@ -58,22 +58,42 @@ export function ConversationChatPanel({
   const hasHumanControl = conversation?.stage === "PENDING_HUMAN" && !!capabilities.data?.control && Date.parse(capabilities.data.control.expiresAt) > capabilities.now
 
 
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const messagesContentRef = useRef<HTMLDivElement>(null)
+  const followLatest = useRef(true)
+  const displayedConversation = useRef<string | undefined>(undefined)
+  const conversationId = conversation?.id
+  const lastMessageId = conversation?.messages.at(-1)?.id
+
+  useLayoutEffect(() => {
+    if (!conversationId) { displayedConversation.current = undefined; followLatest.current = true; return }
+    if (loading) return
+    const container = messagesContainerRef.current
+    if (!container) return
+    if (displayedConversation.current !== conversationId) {
+      displayedConversation.current = conversationId
+      followLatest.current = true
+    }
+    if (followLatest.current) container.scrollTop = container.scrollHeight
+  }, [loading, conversationId, lastMessageId])
+
   useEffect(() => {
-
-    if (loading || !conversation) return;
-    const frameId = requestAnimationFrame(() => {
-      const container = messagesContainerRef.current
-
-      if (container) {
-        container.scrollTop = container.scrollHeight;
-      }
+    const container = messagesContainerRef.current
+    const content = messagesContentRef.current
+    if (loading || !container || !content) return
+    // Attachments and viewport changes can resize content after message rendering.
+    const observer = new ResizeObserver(() => {
+      if (followLatest.current) container.scrollTop = container.scrollHeight
     })
+    observer.observe(content)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [loading, conversationId])
 
-    return () => cancelAnimationFrame(frameId)
-
-  }, [loading, conversation])
-
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const handleScroll = () => {
+    const container = messagesContainerRef.current
+    if (container) followLatest.current = container.scrollHeight - container.clientHeight - container.scrollTop <= 80
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -86,7 +106,7 @@ export function ConversationChatPanel({
       await capabilities.refresh()
       setMessageText("")
     } catch {
-      // The action error is rendered below the composer.
+      // The action error is shown by the toast effect.
     }
   }
 
@@ -155,7 +175,7 @@ export function ConversationChatPanel({
         </div>
       )}
 
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto [scrollbar-color:#2a3942_transparent] [scrollbar-width:thin] bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(135deg,#0b141a_0%,#10232b_100%)] bg-[size:22px_22px,22px_22px,100%_100%] px-5 py-6">
+      <div ref={messagesContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto [scrollbar-color:#2a3942_transparent] [scrollbar-width:thin] bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(135deg,#0b141a_0%,#10232b_100%)] bg-[size:22px_22px,22px_22px,100%_100%] px-5 py-6">
         {loading ? (
           <div className="grid h-full min-h-[420px] place-items-center">
             <Loader />
@@ -179,7 +199,7 @@ export function ConversationChatPanel({
         ) : null}
 
         {!loading && !error && conversation ? (
-          <div className="space-y-4">
+          <div ref={messagesContentRef} className="space-y-4">
             {conversation.messages.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-5 py-4 text-sm text-[#8696a0]">
                 Esta conversación todavía no tiene mensajes registrados.
