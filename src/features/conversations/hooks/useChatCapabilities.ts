@@ -9,21 +9,24 @@ export function useChatCapabilities(id?: string) {
   const [offset,setOffset] = useState(0)
   const { socket } = useRealtime()
   const lastActivity = useRef(0)
+  const activeId = useRef(id)
   const refresh = useCallback(async () => {
+    if (activeId.current !== id) return
     if (!id) { setData(null); return }
-    try { const result = await httpGet<{ data: Capabilities }>(`/api/conversations/${id}/capabilities`); setData(result.data); setOffset(Date.parse(result.data.serverNow)-Date.now()) }
-    catch(e) { setError(e instanceof Error ? e.message : 'No se pudo actualizar el chat') }
+    try { const result = await httpGet<{ data: Capabilities }>(`/api/conversations/${id}/capabilities`); if(activeId.current!==id)return; setData(result.data); setError(''); setOffset(Date.parse(result.data.serverNow)-Date.now()) }
+    catch(e) { if(activeId.current===id)setError(e instanceof Error ? e.message : 'No se pudo actualizar el chat') }
   },[id])
   useEffect(() => {
+    activeId.current=id
     const timer = window.setTimeout(() => { void refresh() },0)
     const update = (e: { conversationId: string }) => { if (e.conversationId === id) void refresh() }
     socket.on('conversation:updated',update)
     const interval = window.setInterval(() => { void refresh() }, 10_000)
-    return () => { clearTimeout(timer); clearInterval(interval); socket.off('conversation:updated',update) }
+    return () => { activeId.current=undefined; clearTimeout(timer); clearInterval(interval); socket.off('conversation:updated',update) }
   },[id,refresh,socket])
   useEffect(() => { const timer=setInterval(()=>setNow(Date.now()),1000); return ()=>clearInterval(timer) },[])
   const activity = useCallback(() => {
-    if (!id || !data?.control || Date.now()-lastActivity.current < 1000) return
+    if (!id || data?.id !== id || !data?.control || Date.now()-lastActivity.current < 1000) return
     lastActivity.current = Date.now()
     const sendHttp = () => { void httpPostJson<{data:Capabilities},{controlSessionId:string}>(`/api/conversations/${id}/activity`,{controlSessionId:data.control!.sessionId}).then(r=>setData(r.data)).catch(e=>setError(String(e))) }
     if (!socket.connected) { sendHttp(); return }
@@ -34,5 +37,5 @@ export function useChatCapabilities(id?: string) {
       setData(current=>current?.control?.sessionId===data.control!.sessionId?{...current,control:{...current.control,expiresAt:result.expiresAt!}}:current)
     })
   },[id,data,socket])
-  return { data,error,refresh,activity,setError,now: now+offset }
+  return { data: data?.id === id ? data : null,error,refresh,activity,setError,now: now+offset }
 }

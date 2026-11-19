@@ -1,3 +1,4 @@
+import { FailureNotifications } from '../../../shared/notifications/failureNotifications'
 import { AudioPlayer } from './AudioPlayer'
 import { useToast } from '../../../shared/notifications/toastContext'
 import { useEffect, useRef, useState } from 'react'
@@ -5,7 +6,7 @@ import { httpPostForm, httpPostJson } from '../../../shared/api/httpClient'
 import { env } from '../../../config/env'
 import { getSessionToken } from '../../auth/session-token'
 export type Attachment = { id: string; messageId: string; name: string; mime: string; size: number; status: string; transcript: string | null; error: string | null }
-export type Capabilities = { scopeControl?: {state: string}; uncertainMessages?: Array<{id:string;text:string}>; failures?: Array<{id:string;error:string}>; control: { sessionId: string; expiresAt: string } | null; serverNow: string; policy: { decision: string; reason?: string; remoteStatus?: string }; attachments: Attachment[] }
+export type Capabilities = { id: string; scopeControl?: {state: string}; uncertainMessages?: Array<{id:string;text:string}>; failures?: Array<{id:string;error:string}>; control: { sessionId: string; expiresAt: string } | null; serverNow: string; policy: { decision: string; reason?: string; remoteStatus?: string }; attachments: Attachment[] }
 export function MediaCard({ attachment, onChanged }: { attachment: Attachment; onChanged?: () => Promise<void> }) {
   const notify = useToast()
   const [url,setUrl] = useState('')
@@ -91,11 +92,13 @@ export function AttachmentPicker({id,capabilities,refresh,setError,caption,onFil
 }
 export function ChatStatus({capabilities,error}:{capabilities:Capabilities|null;error:string}){
  const notify=useToast()
+ const failureNotifications=useRef(new FailureNotifications())
  useEffect(()=>{
   if(error)notify(error,`chat:${error}`)
-  const failures=capabilities?.failures??[]
-  if(failures.length)notify('No se pudo completar el procesamiento. Intenta nuevamente en unos segundos.',`jobs:${failures.map(f=>f.id).sort().join(',')}`)
- },[error,capabilities?.failures,notify])
+  if(!capabilities)return
+  const failures=failureNotifications.current.collect(capabilities.id,capabilities.failures??[])
+  if(failures.length)notify('No se pudo procesar una solicitud del chat. Revisa los registros del servidor.',`jobs:${capabilities.id}:${failures.map(f=>f.id).sort().join(',')}`)
+ },[error,capabilities,notify])
  return <div className="space-y-1 px-1 pt-2 text-xs text-amber-200" aria-live="polite">
   {capabilities?.scopeControl?.state==='PAUSED'&&<p>IA en silencio por tema ajeno. Retomará al consultar sobre Conta Magno.</p>}
   {capabilities?.policy.decision==='REVIEW'&&<p>Mensaje pendiente de revisión. Puedes autorizarlo desde el menú ⋮.</p>}
